@@ -6,13 +6,13 @@
 <meta name="theme-color" content="#0b1a2b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Meteo Vela">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <title>Meteo Vela — Golfo di Cagliari</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
 <style>
 :root{
   --bg:#0b1a2b; --panel:#12263d; --panel2:#183150; --line:#24476e;
@@ -23,7 +23,7 @@
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
   font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 a{color:var(--accent)}
-header{display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top));
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:calc(env(safe-area-inset-top, 0px) + 12px);
   background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1000}
 header h1{font-size:16px;margin:0;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 header .upd{font-size:11px;color:var(--muted);text-align:right}
@@ -397,7 +397,8 @@ function renderAll(){
   }
   if(errs.length) showErr("Parte della pagina non è stata disegnata ("+errs.join("; ")+"). Se compare \"Chart is not defined\" la libreria dei grafici non si è caricata: apri il file in Chrome o Safari, non nell'anteprima.");
 }
-window.addEventListener("error",e=>{ if(e.message) showErr("Errore: "+e.message); });
+// "Script error." senza riga = errore di uno script esterno senza dettagli (iOS lo genera anche aprendo il menu Condividi): non è utile mostrarlo
+window.addEventListener("error",e=>{ if(e.message && !(/^Script error\.?$/.test(e.message) && !e.lineno)) showErr("Errore: "+e.message); });
 window.addEventListener("unhandledrejection",e=>{ const r=e.reason; showErr("Errore: "+(r&&r.message?r.message:String(r))); });
 
 // riga della previsione più vicina all'ora attuale (es. 22:31 → 23:00, 22:20 → 22:00)
