@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1a2b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Meteo Vela">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<title>Meteo Vela — Golfo di Cagliari</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0b1a2b; --panel:#12263d; --panel2:#183150; --line:#24476e;
+  --text:#e6eef7; --muted:#8fa6bf; --accent:#4fc3f7;
+  --green:#2ecc71; --yellow:#f1c40f; --red:#e74c3c; --night:#0a1522;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--accent)}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top));
+  background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1000}
+header h1{font-size:16px;margin:0;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .upd{font-size:11px;color:var(--muted);text-align:right}
+button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+button.on{background:var(--accent);color:#04202f;border-color:var(--accent)}
+button:disabled{opacity:.5}
+main{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+.view{display:none}.view.active{display:block}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--panel);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);z-index:1000}
+nav button{flex:1;border:0;border-radius:0;background:none;padding:10px 4px;font-size:12px;color:var(--muted)}
+nav button.on{color:var(--accent);background:none}
+nav button span{display:block;font-size:18px}
+.wrap{max-width:980px;margin:0 auto;padding:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px;font-weight:600}
+.now{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.now .k{font-size:11px;color:var(--muted)}.now .v{font-size:22px;font-weight:600}
+.now .s{font-size:12px;color:var(--muted)}
+.live{position:relative;overflow:hidden}
+.live .src{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.live .name{font-size:42px;line-height:1.05;font-weight:800;letter-spacing:.01em;margin:4px 0 2px;display:flex;align-items:center;gap:12px}
+.live .name .arr{font-size:34px;font-weight:400}
+.live .sub{font-size:17px;font-weight:600}
+.live .sub small{font-weight:400;color:var(--muted);font-size:13px}
+.live .cmp{font-size:12px;color:var(--muted);margin-top:6px}
+.shore{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:6px 10px;border-radius:8px;font-size:14px;font-weight:600}
+.shore.terra{background:#4a1d1d;border:1px solid #8a3434;color:#ffd6d6}
+.shore.terra.y{background:#4a3d12;border-color:#8a7434;color:#fff2c4}
+.shore.lato{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+.shore.mare{background:#143a2a;border:1px solid #2a6b4c;color:#c9f2dc}
+.offs{color:var(--yellow);font-weight:600}
+.verdict{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;margin-bottom:10px}
+.dot{width:14px;height:14px;border-radius:50%;display:inline-block;flex:none}
+.g{background:var(--green)}.y{background:var(--yellow)}.r{background:var(--red)}.n{background:#566}
+.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.day{flex:none;min-width:118px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px;cursor:pointer}
+.day.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.day .t{font-weight:600}.day .m{font-size:12px;color:var(--muted)}
+.day .bar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:6px}
+.day .bar i{flex:1}
+.chartbox{position:relative;height:220px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:5px 4px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:500;font-size:11px;position:sticky;top:0;background:var(--panel)}
+tr.night td{color:#6f86a0;background:var(--night)}
+.arr{display:inline-block;transition:none}
+.muted{color:var(--muted)}.small{font-size:12px}
+.wk{display:inline-block;min-width:34px;padding:1px 4px;border-radius:4px;color:#fff;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.5)}
+.tablewrap{max-height:520px;overflow:auto}
+.toggle{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+#windyFrame{width:100%;height:calc(100vh - 56px - 64px - 52px - env(safe-area-inset-bottom));height:calc(100dvh - 56px - 64px - 52px - env(safe-area-inset-bottom));border:0;display:block}
+#windyOverlays{flex-wrap:nowrap;overflow-x:auto;margin:0;padding-bottom:2px;align-items:center}
+#windyOverlays button,#windyOverlays a{flex:none;white-space:nowrap}
+.form{display:grid;grid-template-columns:1fr 90px;gap:8px 10px;align-items:center}
+.form input{font:inherit;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px}
+.spotlist div{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.spotlist div span{flex:1}
+.err{background:#4a1d1d;border:1px solid #8a3434;color:#ffd6d6;padding:8px 10px;border-radius:8px;margin-bottom:10px;display:none}
+.warn{font-size:12px;color:var(--muted);border-left:3px solid var(--yellow);padding-left:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="spotName">Meteo Vela</h1>
+  <div class="upd" id="updLbl">—</div>
+  <button id="refreshBtn" title="Aggiorna">⟳</button>
+</header>
+
+<main>
+<!-- ============ PREVISIONE ============ -->
+<section class="view active" id="v-fc">
+ <div class="wrap">
+  <div class="err" id="fcErr"></div>
+  <div class="card live" id="liveCard"><div class="src">Vento adesso</div><div class="name">—</div></div>
+  <div class="card">
+    <div class="verdict" id="verdict"><span class="dot n"></span><span>Caricamento…<br><small style="font-weight:400;color:#8fa6bf">Se resta così per più di qualche secondo, la pagina è aperta in un’anteprima che blocca JavaScript: scarica il file e aprilo con Safari o Chrome (tasto destro → Apri con).</small></span></div>
+    <div class="now" id="nowBox"></div>
+  </div>
+  <div class="card">
+    <h2>Giorni</h2>
+    <div class="days" id="days"></div>
+  </div>
+  <div class="card">
+    <h2>Vento (nodi) — ICON-2I vs ECMWF</h2>
+    <div class="chartbox"><canvas id="windChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Onda (m)</h2>
+    <div class="chartbox"><canvas id="waveChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2 id="tableTitle">Dettaglio orario</h2>
+    <div class="toggle">
+      <button id="lightOnly" class="on">Solo ore di luce</button>
+    </div>
+    <div class="tablewrap"><table id="hourTable"></table></div>
+    <p class="small muted">Frecce: direzione verso cui soffia il vento / va l'onda. Sigla = provenienza; ⚠ = vento da terra. Δ = differenza ICON-2I − ECMWF: se grande, la previsione è incerta.</p>
+  </div>
+  <p class="warn">Strumento indicativo basato su modelli numerici. Prima di uscire controlla sempre il bollettino Meteomar e gli avvisi ufficiali (scheda Fonti).</p>
+ </div>
+</section>
+
+<!-- ============ MAPPA (Windy) ============ -->
+<section class="view" id="v-windy">
+  <div class="wrap" style="padding:8px 12px">
+    <div class="toggle" id="windyOverlays"></div>
+  </div>
+  <iframe id="windyFrame" title="Windy" loading="lazy"></iframe>
+</section>
+
+<!-- ============ FONTI / IMPOSTAZIONI ============ -->
+<section class="view" id="v-set">
+ <div class="wrap">
+  <div class="card">
+    <h2>Spot</h2>
+    <div class="spotlist" id="spotList"></div>
+    <div class="toggle" style="margin-top:10px">
+      <button id="geoBtn">📍 Usa la mia posizione</button>
+    </div>
+    <div class="toggle" style="margin-top:10px">
+      <input id="coordIn" placeholder="39.200, 9.170 oppure link Google Maps" style="flex:1;min-width:200px;font:inherit;padding:6px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px">
+      <button id="coordBtn">Imposta</button>
+    </div>
+    <p class="small muted">Per aggiungere uno spot: scrivi le coordinate o incolla un link di Google Maps (quello lungo, dal browser; i link brevi maps.app.goo.gl non contengono le coordinate), premi "Imposta", poi "Salva spot attuale". Lo spot deve essere in mare per avere le onde.</p>
+    <div class="form" style="margin-top:12px">
+      <label for="seaSel">Il mare, guardando dalla spiaggia dello spot attuale, è verso</label>
+      <select id="seaSel" style="font:inherit;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px"></select>
+    </div>
+    <p class="small muted">Serve per l'avviso <b>vento da terra</b>: il vento che soffia dalla spiaggia verso il largo. In acqua sembra debole, ma più fuori rinforza e rientrare diventa difficile. Al Poetto il mare è a SSE, quindi sono da terra i venti da O a NE (Ponente, Maestrale, Tramontana, Grecale).</p>
+    <button id="saveSpotBtn">＋ Salva spot attuale</button>
+  </div>
+  <div class="card">
+    <h2>Soglie semaforo</h2>
+    <div class="form" id="thrForm"></div>
+    <p class="small muted">Verde: tutto sotto le soglie "ok". Giallo: oltre "ok" ma sotto "max". Rosso: almeno un valore oltre "max". Le soglie "vento da terra" valgono solo quando il vento soffia dalla spiaggia verso il largo.</p>
+    <p class="small muted">Valori di partenza pensati per Laser o FJ, da solo o in due, livello intermedio, uscite vicino alla costa: abbassali se sei alle prime uscite, alzali quando ti senti sicuro.</p>
+    <button id="resetThr">Ripristina valori prudenti</button>
+  </div>
+  <div class="card">
+    <h2>Bollettini ufficiali</h2>
+    <ul>
+      <li><a href="https://www.meteoam.it" target="_blank" rel="noopener">Aeronautica Militare – meteoam.it</a> (bollettino del mare / Meteomar, avvisi). Via radio: VHF canale 68.</li>
+      <li><a href="https://radar.protezionecivile.it/radar-dpc/" target="_blank" rel="noopener">Radar Protezione Civile (DPC)</a> – risoluzione piena sull'Italia</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Nomi dei venti</h2>
+    <p class="small">Da dove arriva il vento:
+      <b>Tramontana</b> N · <b>Grecale</b> NE · <b>Levante</b> E · <b>Scirocco</b> SE · <b>Mezzogiorno</b> S · <b>Libeccio</b> SO · <b>Ponente</b> O · <b>Maestrale</b> NO.</p>
+    <p class="small muted">Sotto i 2 nodi è "Calma". Il nome usa 8 settori di 45°: un vento da NNO (337°) cade tra Maestrale e Tramontana e prende il nome del settore più vicino.</p>
+  </div>
+  <div class="card">
+    <h2>Fonti dati</h2>
+    <ul class="small">
+      <li>Vento: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0) – modelli ItaliaMeteo-ARPAE ICON-2I (2 km, 3 gg) ed ECMWF IFS (7 gg)</li>
+      <li>Onde: Open-Meteo Marine API (miglior modello disponibile)</li>
+      <li>Vento misurato: METAR dell'aeroporto di Cagliari-Elmas (LIEE) da <a href="https://aviationweather.gov" target="_blank" rel="noopener">aviationweather.gov</a>, letto ogni 10 minuti dal server di pubblicazione. Elmas è a circa 10 km dal Poetto, nell'entroterra: la brezza di mare sulla spiaggia può essere diversa.</li>
+      <li>Mappa e radar: <a href="https://www.windy.com" target="_blank" rel="noopener">windy.com</a> (embed, uso personale)</li>
+    </ul>
+  </div>
+ </div>
+</section>
+</main>
+
+<nav>
+  <button data-view="v-fc" class="on"><span>⛵</span>Previsione</button>
+  <button data-view="v-windy"><span>🗺️</span>Mappa</button>
+  <button data-view="v-set"><span>⚙️</span>Fonti</button>
+</nav>
+
+<script>
+/* Diagnosi: se lo script principale non parte o va in errore, lo mostra a schermo */
+window.__mvStarted=false;
+window.addEventListener("error",function(e){
+  var v=document.getElementById("verdict");
+  if(v&&!window.__mvStarted){ v.innerHTML="⚠️ Errore JavaScript: "+(e.message||"sconosciuto")+(e.lineno?" (riga "+e.lineno+")":"")+"<br><small>Browser: "+navigator.userAgent+"</small>"; }
+});
+setTimeout(function(){
+  if(window.__mvStarted) return;
+  var v=document.getElementById("verdict");
+  if(v) v.innerHTML="⚠️ Lo script non è partito. Probabile anteprima che blocca JavaScript: scarica il file e aprilo con Safari o Chrome (tasto destro → Apri con).<br><small>Browser: "+navigator.userAgent+" · librerie: Chart "+(typeof Chart)+"</small>";
+},6000);
+</script>
+<noscript><div style="padding:16px;background:#4a1d1d;color:#fff">JavaScript è disattivato o bloccato: apri il file con Safari o Chrome.</div></noscript>
+<script>
+"use strict";
+window.__mvStarted=true;
+/* ===================== CONFIG ===================== */
+const DEFAULT_SPOTS = [
+  {name:"Cagliari – Poetto", lat:39.200, lon:9.170, sea:157.5},
+  {name:"Cagliari – Marina Piccola", lat:39.198, lon:9.150, sea:157.5},
+];
+const DEFAULT_THR = {windOk:12, windMax:16, gustOk:16, gustMax:22, waveOk:0.6, waveMax:1.0, offOk:6, offMax:10};
+const THR_LABELS = {
+  windOk:"Vento medio ok (kn)", windMax:"Vento medio max (kn)",
+  gustOk:"Raffiche ok (kn)", gustMax:"Raffiche max (kn)",
+  waveOk:"Onda ok (m)", waveMax:"Onda max (m)",
+  offOk:"Vento da terra ok (kn)", offMax:"Vento da terra max (kn)"
+};
+// Nomi tradizionali dei venti (direzione di provenienza), 8 settori da 45°
+const WIND_NAMES = ["Tramontana","Grecale","Levante","Scirocco","Mezzogiorno","Libeccio","Ponente","Maestrale"];
+const LIVE_URL = "live.json";
+const M_ICON = "italia_meteo_arpae_icon_2i", M_EC = "ecmwf_ifs025";
+const CARD = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSO","SO","OSO","O","ONO","NO","NNO"];
+const WIND_STOPS = [[0,"#6271b7"],[3,"#39619f"],[6,"#4a94a9"],[9,"#4d8d7b"],[12,"#53a553"],[15,"#359f35"],[18,"#a79d51"],[21,"#9f7f3a"],[25,"#a16c5c"],[29,"#813a4e"],[33,"#af5088"],[38,"#754a93"],[45,"#6d61a3"]];
+
+/* ===================== STATE ===================== */
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem("mv_"+k); return v?JSON.parse(v):d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem("mv_"+k,JSON.stringify(v)); }catch(e){} }
+};
+let spots = store.get("spots", DEFAULT_SPOTS);
+let spot = store.get("spot", spots[0]);
+let thr = Object.assign({}, DEFAULT_THR, store.get("thr", {}));
+// spot salvati prima dell'avviso "vento da terra": aggiungo la direzione del mare dai default
+const addSea = s => { if(s && !("sea" in s)){ const d=DEFAULT_SPOTS.find(x=>x.name===s.name); s.sea = d ? d.sea : null; } return s; };
+spots.forEach(addSea); addSea(spot);
+let live = null;        // osservazioni da live.json
+let fc = null;          // forecast data per lo spot
+let selDay = 0, lightOnly = true;
+let windChart = null, waveChart = null;
+
+/* ===================== UTIL ===================== */
+const $ = id => document.getElementById(id);
+const fmt = (v,d=0) => (v==null||isNaN(v)) ? "–" : Number(v).toFixed(d);
+const card = deg => deg==null ? "–" : CARD[Math.round(((deg%360)+360)%360/22.5)%16];
+const arrow = (deg,col) => deg==null ? "" : `<span class="arr" style="transform:rotate(${(deg+180)%360}deg);color:${col||'inherit'}">↑</span>`;
+const windName = (deg,kn) => (kn!=null && kn<2) ? "Calma" : deg==null ? "Variabile" : WIND_NAMES[Math.round(((deg%360)+360)%360/45)%8];
+const angDiff = (a,b) => { const d=Math.abs(((a-b)%360+360)%360); return d>180?360-d:d; };
+// "terra" = soffia dalla spiaggia verso il largo; "mare" = verso riva; "lato" = parallelo alla costa
+function shoreRel(deg){
+  if(deg==null || spot.sea==null) return null;
+  const d = angDiff(deg, (spot.sea+180)%360);
+  return d<=67.5 ? "terra" : d>=112.5 ? "mare" : "lato";
+}
+const DOW = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
+const dayKey = d => d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+const hh = d => String(d.getHours()).padStart(2,"0")+":00";
+function lerpColor(stops, v){
+  if(v==null||isNaN(v)) return null;
+  if(v<=stops[0][0]) return hex(stops[0][1]);
+  for(let i=1;i<stops.length;i++){
+    if(v<=stops[i][0]){
+      const [a,ca]=stops[i-1],[b,cb]=stops[i], t=(v-a)/(b-a);
+      const A=hex(ca),B=hex(cb);
+      return [A[0]+(B[0]-A[0])*t, A[1]+(B[1]-A[1])*t, A[2]+(B[2]-A[2])*t];
+    }
+  }
+  return hex(stops[stops.length-1][1]);
+}
+function hex(h){ return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]; }
+const rgb = c => c ? `rgb(${c[0]|0},${c[1]|0},${c[2]|0})` : "transparent";
+function showErr(msg){ const e=$("fcErr"); e.textContent=msg; e.style.display=msg?"block":"none"; }
+async function getJSON(url){
+  const ctl = (typeof AbortController!=="undefined") ? new AbortController() : null;
+  const to = setTimeout(()=>ctl&&ctl.abort(), 25000);
+  let r;
+  try{ r = await fetch(url, ctl?{signal:ctl.signal}:{}); }
+  catch(e){ throw new Error(e.name==="AbortError" ? "tempo scaduto (rete lenta o bloccata)" : (e.message||"rete non raggiungibile")); }
+  finally{ clearTimeout(to); }
+  if(!r.ok){ let t=""; try{ t=(await r.json()).reason||""; }catch(e){} throw new Error("HTTP "+r.status+" "+t); }
+  return r.json();
+}
+
+/* ===================== NAV ===================== */
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===b.dataset.view));
+  if(b.dataset.view==="v-windy") openWindy();
+});
+
+/* ===================== FORECAST (SPOT) ===================== */
+async function loadForecast(){
+  $("spotName").textContent = spot.name;
+  $("verdict").innerHTML = '<span class="dot n"></span>Caricamento…';
+  showErr("");
+  const base = `latitude=${spot.lat}&longitude=${spot.lon}&timezone=Europe%2FRome`;
+  const wUrl = `https://api.open-meteo.com/v1/forecast?${base}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,precipitation,cloud_cover&daily=sunrise,sunset&models=${M_ICON},${M_EC}&wind_speed_unit=kn&forecast_days=7`;
+  const mUrl = `https://marine-api.open-meteo.com/v1/marine?${base}&hourly=wave_height,wave_direction,wave_period,wind_wave_height,wind_wave_direction,swell_wave_height,swell_wave_direction,swell_wave_period,sea_surface_temperature&forecast_days=7`;
+  let w, m = null;
+  try{ w = await getJSON(wUrl); }
+  catch(e){ showErr("Errore nel caricare il vento: "+e.message); $("verdict").innerHTML='<span class="dot n"></span>Dati non disponibili'; return; }
+  try{ m = await getJSON(mUrl); }
+  catch(e){ showErr("Onde non disponibili per questo punto ("+e.message+"). Lo spot deve essere in mare."); }
+  try{ fc = buildRows(w, m); }
+  catch(e){ console.error(e); showErr("Errore nell'elaborare i dati: "+e.message); $("verdict").innerHTML='<span class="dot n"></span>Errore nei dati'; return; }
+  $("updLbl").innerHTML = "Aggiornato<br>"+new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
+  selDay = 0;
+  renderAll();
+}
+
+function buildRows(w, m){
+  const H = w.hourly, sfx = k => H[k+"_"+M_ICON], sfe = k => H[k+"_"+M_EC];
+  const mt = {};
+  if(m && m.hourly) m.hourly.time.forEach((t,i)=>mt[t]=i);
+  const sun = {};
+  // con più modelli Open-Meteo aggiunge il suffisso del modello anche ai dati giornalieri
+  const dk = pre => { const D=w.daily||{}; return D[pre] || D[pre+"_"+M_EC] || D[pre+"_"+M_ICON] || Object.keys(D).filter(k=>k.startsWith(pre)).map(k=>D[k])[0] || []; };
+  const SR=dk("sunrise"), SS=dk("sunset");
+  ((w.daily&&w.daily.time)||[]).forEach((d,i)=>{ if(SR[i]&&SS[i]) sun[d]={rise:new Date(SR[i]), set:new Date(SS[i])}; });
+  const rows = H.time.map((t,i)=>{
+    const d = new Date(t), di = mt[t];
+    const iw = sfx("wind_speed_10m")?.[i], ew = sfe("wind_speed_10m")?.[i];
+    const r = {
+      t:d, key:dayKey(d),
+      iconW: iw, iconG: sfx("wind_gusts_10m")?.[i], iconD: sfx("wind_direction_10m")?.[i],
+      ecW: ew, ecG: sfe("wind_gusts_10m")?.[i], ecD: sfe("wind_direction_10m")?.[i],
+      temp: sfx("temperature_2m")?.[i] ?? sfe("temperature_2m")?.[i],
+      rain: sfx("precipitation")?.[i] ?? sfe("precipitation")?.[i],
+      cloud: sfx("cloud_cover")?.[i] ?? sfe("cloud_cover")?.[i],
+    };
+    if(di!=null){ const M=m.hourly;
+      r.wave=M.wave_height[di]; r.waveD=M.wave_direction[di]; r.waveP=M.wave_period[di];
+      r.ww=M.wind_wave_height[di]; r.swell=M.swell_wave_height[di]; r.swellD=M.swell_wave_direction[di]; r.swellP=M.swell_wave_period[di];
+      r.sst=M.sea_surface_temperature[di];
+    }
+    // valore principale: ICON-2I se disponibile, altrimenti ECMWF
+    r.W = r.iconW ?? r.ecW; r.G = r.iconG ?? r.ecG; r.D = r.iconD ?? r.ecD;
+    r.src = r.iconW!=null ? "ICON-2I" : "ECMWF";
+    r.delta = (r.iconW!=null && r.ecW!=null) ? r.iconW - r.ecW : null;
+    const s = sun[t.slice(0,10)];
+    r.light = s ? (d >= new Date(s.rise.getTime()-3600e3) && d <= new Date(s.set.getTime()+1800e3)) : true;
+    r.status = rate(r);
+    return r;
+  }).filter(r=>r.W!=null);
+  const days = [];
+  rows.forEach(r=>{ let D=days.find(x=>x.key===r.key); if(!D){ D={key:r.key,date:r.t,rows:[]}; days.push(D);} D.rows.push(r); });
+  return {rows, days};
+}
+
+function rate(r){
+  const w=r.W, g=r.G, h=r.wave;
+  if(w==null) return "n";
+  const off = shoreRel(r.D)==="terra";
+  r.off = off;
+  if(off && w>thr.offMax) return "r";
+  if(w>thr.windMax || (g!=null&&g>thr.gustMax) || (h!=null&&h>thr.waveMax)) return "r";
+  if(off && w>thr.offOk) return "y";
+  if(w>thr.windOk || (g!=null&&g>thr.gustOk) || (h!=null&&h>thr.waveOk)) return "y";
+  return "g";
+}
+const STATUS_TXT = {g:"Condizioni entro le tue soglie", y:"Al limite: prudenza", r:"Oltre le soglie: meglio restare a terra", n:"Dati insufficienti"};
+const STATUS_COL = {g:"var(--green)", y:"var(--yellow)", r:"var(--red)", n:"#566"};
+
+function bestWindows(rows){
+  // finestre consecutive verdi di giorno, almeno 2 ore
+  const out=[]; let cur=null;
+  rows.forEach(r=>{
+    if(r.light && r.status==="g"){ if(!cur) cur={a:r.t,b:r.t}; else cur.b=r.t; }
+    else { if(cur) out.push(cur); cur=null; }
+  });
+  if(cur) out.push(cur);
+  return out.filter(x=>(x.b-x.a)>=3600e3);
+}
+
+function renderAll(){
+  if(!fc) return;
+  fc.rows.forEach(r=>r.status=rate(r));
+  const errs=[];
+  for(const [n,f] of [["riepilogo",renderNow],["giorni",renderDays],["grafici",renderCharts],["tabella",renderTable]]){
+    try{ f(); }catch(e){ errs.push(n+": "+e.message); console.error(e); }
+  }
+  if(errs.length) showErr("Parte della pagina non è stata disegnata ("+errs.join("; ")+"). Se compare \"Chart is not defined\" la libreria dei grafici non si è caricata: apri il file in Chrome o Safari, non nell'anteprima.");
+}
+window.addEventListener("error",e=>{ if(e.message) showErr("Errore: "+e.message); });
+window.addEventListener("unhandledrejection",e=>{ const r=e.reason; showErr("Errore: "+(r&&r.message?r.message:String(r))); });
+
+function renderNow(){
+  renderLive();
+  const now = new Date();
+  const r = fc.rows.find(x=>x.t>=new Date(now.getTime()-3600e3)) || fc.rows[0];
+  const next = fc.rows.filter(x=>x.t>=r.t && x.t < new Date(r.t.getTime()+6*3600e3));
+  const worst = next.reduce((a,x)=>({r:3,y:2,g:1,n:0}[x.status]>({r:3,y:2,g:1,n:0}[a])?x.status:a),"n");
+  const offN = next.filter(x=>x.off && x.status!=="g").length;
+  $("verdict").innerHTML = `<span class="dot ${worst}"></span>Prossime 6 ore: ${STATUS_TXT[worst]}${offN?` <span class="offs">· vento da terra</span>`:""}`;
+  const unc = r.delta!=null && Math.abs(r.delta)>=5 ? `<div class="s" style="color:var(--yellow)">modelli discordi (Δ ${fmt(r.delta)} kn)</div>` : "";
+  $("nowBox").innerHTML = `
+    <div><div class="k">Vento ${hh(r.t)} (${r.src})</div><div class="v">${arrow(r.D)} ${fmt(r.W)} kn</div><div class="s">da ${card(r.D)} · raffiche ${fmt(r.G)} kn</div>${unc}</div>
+    <div><div class="k">ECMWF</div><div class="v">${fmt(r.ecW)} kn</div><div class="s">raffiche ${fmt(r.ecG)} kn</div></div>
+    <div><div class="k">Onda</div><div class="v">${fmt(r.wave,1)} m</div><div class="s">da ${card(r.waveD)} · ${fmt(r.waveP)} s</div></div>
+    <div><div class="k">Mare vento / lunga</div><div class="v">${fmt(r.ww,1)} / ${fmt(r.swell,1)}</div><div class="s">lunga ${fmt(r.swellP)} s da ${card(r.swellD)}</div></div>
+    <div><div class="k">Aria / Acqua</div><div class="v">${fmt(r.temp)}° / ${fmt(r.sst)}°</div><div class="s">pioggia ${fmt(r.rain,1)} mm · nuvole ${fmt(r.cloud)}%</div></div>`;
+}
+
+function renderDays(){
+  $("days").innerHTML = fc.days.map((D,i)=>{
+    const L = D.rows.filter(r=>r.light);
+    const src = L.length?L:D.rows;
+    const maxW = Math.max(...src.map(r=>r.W)), maxG = Math.max(...src.map(r=>r.G??0));
+    const waves = src.map(r=>r.wave).filter(v=>v!=null), maxH = waves.length?Math.max(...waves):null;
+    const win = bestWindows(D.rows);
+    const offH = src.filter(r=>r.off && r.status!=="g").length;
+    const wtxt = (offH?`<span class="offs">Vento da terra ${offH} h</span><br>`:"") + (win.length ? "Finestra: "+win.map(x=>x.a.getHours()+"–"+(x.b.getHours()+1)).join(", ") : "Nessuna finestra verde");
+    const bar = src.map(r=>`<i class="${r.status}"></i>`).join("");
+    const dd = D.date;
+    return `<div class="day ${i===selDay?'on':''}" data-i="${i}">
+      <div class="t">${i===0?"Oggi":DOW[dd.getDay()]} ${dd.getDate()}</div>
+      <div class="m">vento max ${fmt(maxW)} kn (raff. ${fmt(maxG)})</div>
+      <div class="m">onda max ${fmt(maxH,1)} m</div>
+      <div class="m">${wtxt}</div>
+      <div class="bar">${bar}</div></div>`;
+  }).join("");
+  document.querySelectorAll(".day").forEach(el=>el.onclick=()=>{ selDay=+el.dataset.i; renderDays(); renderTable(); });
+}
+
+function renderCharts(){
+  const rows = fc.rows;
+  const labels = rows.map(r=>(r.t.getHours()===0? DOW[r.t.getDay()]+" ":"")+r.t.getHours()+"h");
+  const common = {
+    responsive:true, maintainAspectRatio:false, animation:false, interaction:{mode:"index",intersect:false},
+    plugins:{legend:{labels:{color:"#cfe0f1",boxWidth:12,font:{size:11}}}, tooltip:{}},
+    scales:{x:{ticks:{color:"#8fa6bf",maxTicksLimit:14,autoSkip:true},grid:{color:"rgba(80,120,160,.15)"}},
+            y:{ticks:{color:"#8fa6bf"},grid:{color:"rgba(80,120,160,.15)"},beginAtZero:true}}
+  };
+  const line = (label,data,color,extra={}) => Object.assign({label,data,borderColor:color,backgroundColor:color,pointRadius:0,borderWidth:2,spanGaps:true,tension:.25},extra);
+  const flat = v => rows.map(()=>v);
+  if(windChart) windChart.destroy();
+  windChart = new Chart($("windChart"),{type:"line",data:{labels,datasets:[
+    line("ICON-2I",rows.map(r=>r.iconW),"#4fc3f7"),
+    line("Raffiche ICON",rows.map(r=>r.iconG),"#4fc3f7",{borderDash:[4,3],borderWidth:1}),
+    line("ECMWF",rows.map(r=>r.ecW),"#f6a5c0"),
+    line("Raffiche ECMWF",rows.map(r=>r.ecG),"#f6a5c0",{borderDash:[4,3],borderWidth:1}),
+    line("Soglia max",flat(thr.windMax),"rgba(231,76,60,.7)",{borderWidth:1,borderDash:[2,4]}),
+  ]},options:common});
+  if(waveChart) waveChart.destroy();
+  waveChart = new Chart($("waveChart"),{type:"line",data:{labels,datasets:[
+    line("Onda totale",rows.map(r=>r.wave),"#90eb9d",{fill:true,backgroundColor:"rgba(144,235,157,.15)"}),
+    line("Mare di vento",rows.map(r=>r.ww),"#ffff8c",{borderWidth:1}),
+    line("Onda lunga",rows.map(r=>r.swell),"#b39ddb",{borderWidth:1}),
+    line("Soglia max",flat(thr.waveMax),"rgba(231,76,60,.7)",{borderWidth:1,borderDash:[2,4]}),
+  ]},options:common});
+}
+
+function wcell(v){ const c=lerpColor(WIND_STOPS,v); return v==null?"–":`<span class="wk" style="background:${rgb(c)}">${fmt(v)}</span>`; }
+function renderTable(){
+  const D = fc.days[selDay]; if(!D) return;
+  const dd = D.date;
+  $("tableTitle").textContent = "Dettaglio orario — "+(selDay===0?"oggi":DOW[dd.getDay()]+" "+dd.getDate());
+  const rows = D.rows.filter(r=>!lightOnly||r.light);
+  $("hourTable").innerHTML = `<thead><tr><th>Ora</th><th></th><th>Vento</th><th>Raff.</th><th>ECMWF</th><th>Δ</th><th>Onda</th><th>Per.</th><th>Lunga</th><th>°C</th><th>mm</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr class="${r.light?'':'night'}">
+      <td>${hh(r.t)}</td><td><span class="dot ${r.status}"></span></td>
+      <td>${arrow(r.D)} ${wcell(r.W)} <span class="small ${r.off?'offs':'muted'}" title="${windName(r.D,r.W)}">${card(r.D)}${r.off?" ⚠":""}</span></td>
+      <td>${wcell(r.G)}</td>
+      <td class="muted">${fmt(r.ecW)}/${fmt(r.ecG)}</td>
+      <td style="color:${r.delta!=null&&Math.abs(r.delta)>=5?'var(--yellow)':'inherit'}">${r.delta==null?"–":(r.delta>0?"+":"")+fmt(r.delta)}</td>
+      <td>${arrow(r.waveD)} ${fmt(r.wave,1)}</td><td>${fmt(r.waveP)}s</td>
+      <td class="muted">${fmt(r.swell,1)}</td><td>${fmt(r.temp)}</td><td>${r.rain?fmt(r.rain,1):""}</td></tr>`).join("")+"</tbody>";
+}
+$("lightOnly").onclick=()=>{ lightOnly=!lightOnly; $("lightOnly").classList.toggle("on",lightOnly); renderTable(); };
+$("refreshBtn").onclick=()=>{ loadForecast(); loadLive(); };
+
+/* ===================== WINDY ===================== */
+const WINDY_OV=[["wind","Vento"],["gust","Raffiche"],["waves","Onde"],["wwaves","Mare vento"],["swell1","Onda lunga"],["rain","Pioggia"],["radar","Radar"]];
+let windyOv="wind";
+function windyUrl(){
+  const p=new URLSearchParams({lat:spot.lat-0.1,lon:spot.lon,detailLat:spot.lat,detailLon:spot.lon,zoom:9,level:"surface",overlay:windyOv,
+    product:windyOv==="radar"?"radar":"ecmwf",menu:"",message:"true",marker:"true",calendar:"now",pressure:"",type:"map",location:"coordinates",detail:windyOv==="radar"?"":"true",
+    metricWind:"kt",metricTemp:"°C",radarRange:"-1"});
+  return "https://embed.windy.com/embed2.html?"+p.toString();
+}
+function openWindy(){
+  $("windyOverlays").innerHTML=WINDY_OV.map(([k,l])=>`<button data-ov="${k}" class="${k===windyOv?'on':''}">${l}</button>`).join("")+
+    ` <a class="small" href="https://www.windy.com/${spot.lat}/${spot.lon}?${windyOv},${spot.lat},${spot.lon},10" target="_blank" rel="noopener">Apri su Windy ↗</a>`;
+  document.querySelectorAll("#windyOverlays button").forEach(b=>b.onclick=()=>{ windyOv=b.dataset.ov; $("windyFrame").src=windyUrl(); openWindy(); });
+  const on=document.querySelector("#windyOverlays .on"); if(on) on.scrollIntoView({inline:"nearest",block:"nearest"});
+  const u=windyUrl(); if($("windyFrame").dataset.u!==u){ $("windyFrame").src=u; $("windyFrame").dataset.u=u; }
+}
+
+/* ===================== VENTO ADESSO ===================== */
+function distKm(a,b,c,d){ const R=6371,r=Math.PI/180, x=(d-b)*r*Math.cos((a+c)/2*r), y=(c-a)*r; return Math.sqrt(x*x+y*y)*R; }
+function ago(t){ const m=Math.round((Date.now()-t)/60000); return m<1?"ora": m<60? m+" min fa" : Math.floor(m/60)+" h "+(m%60)+" min fa"; }
+async function loadLive(){
+  try{
+    const j = await getJSON(LIVE_URL+"?t="+Date.now());
+    live = (j && Array.isArray(j.stations)) ? j : null;
+  }catch(e){ live = null; }   // aperta da file o senza server: si usa solo la previsione
+  try{ renderLive(); }catch(e){ console.error(e); }
+}
+function renderLive(){
+  const el=$("liveCard");
+  // stazione più vicina allo spot con un dato di meno di 90 minuti
+  let obs=null;
+  if(live) live.stations.filter(s=>s.time && Date.now()-new Date(s.time)<90*60e3 && s.kn!=null)
+    .forEach(s=>{ s.km=distKm(spot.lat,spot.lon,s.lat,s.lon); if(!obs||s.km<obs.km) obs=s; });
+  const now=new Date(), r = fc ? (fc.rows.find(x=>x.t>=new Date(now.getTime()-1800e3)) || fc.rows[0]) : null;
+  if(!obs && !r){ el.innerHTML='<div class="src">Vento adesso</div><div class="name">—</div>'; return; }
+  const deg = obs ? obs.dir : r.D, kn = obs ? obs.kn : r.W, gust = obs ? obs.gust : r.G;
+  const name = windName(deg,kn);
+  const src = obs ? `Misurato · ${obs.name} · ${ago(new Date(obs.time))}${obs.km>1?` · a ${Math.round(obs.km)} km`:""}`
+                  : `Previsione ${r.src} delle ${hh(r.t)} · nessuna misura recente`;
+  const rel = (name==="Calma"||deg==null) ? null : shoreRel(deg);
+  let shore="";
+  if(rel==="terra"){
+    const lvl = kn>thr.offMax ? "" : " y";
+    const txt = kn>thr.offMax ? "ti spinge al largo — oltre la tua soglia" : kn>thr.offOk ? "ti spinge al largo, prudenza" : "per ora debole, controlla se rinforza";
+    shore=`<div class="shore terra${lvl}">⚠️ Vento da terra: ${txt}</div>`;
+  } else if(rel==="lato") shore=`<div class="shore lato">↔ Parallelo alla costa</div>`;
+  else if(rel==="mare") shore=`<div class="shore mare">↓ Dal mare verso riva</div>`;
+  const cmp = (obs && r) ? `<div class="cmp">Previsione ${r.src} per le ${hh(r.t)}: ${windName(r.D,r.W)} ${fmt(r.W)} kn, raffiche ${fmt(r.G)}${Math.abs((r.W??0)-kn)>=5?` <span class="offs">· scarto di ${fmt(Math.abs(r.W-kn))} kn dalla misura</span>`:""}</div>` : "";
+  el.innerHTML = `<div class="src">${src}</div>
+    <div class="name">${deg!=null&&name!=="Calma"?arrow(deg):""}<span>${name}</span></div>
+    <div class="sub">${fmt(kn)} kn${gust!=null?` · raffiche ${fmt(gust)}`:""} <small>${deg!=null?"da "+card(deg)+" ("+Math.round(deg)+"°)":"direzione variabile"}</small></div>
+    ${shore}${cmp}`;
+}
+
+/* ===================== IMPOSTAZIONI ===================== */
+function setSpot(s){
+  spot=addSea({...s}); store.set("spot",spot);
+  renderSpots(); renderSea(); loadForecast();
+}
+function renderSea(){
+  const opts=[["","Non so (niente avviso)"]].concat(CARD.map((c,i)=>[String(i*22.5),c+" ("+WIND_NAMES[Math.round(i/2)%8]+")"]));
+  $("seaSel").innerHTML=opts.map(([v,l])=>`<option value="${v}" ${String(spot.sea??"")===v?"selected":""}>${l}</option>`).join("");
+}
+$("seaSel").onchange=e=>{
+  const v=e.target.value===""?null:+e.target.value;
+  spot={...spot,sea:v}; store.set("spot",spot);
+  spots.forEach(x=>{ if(x.name===spot.name&&x.lat===spot.lat&&x.lon===spot.lon) x.sea=v; }); store.set("spots",spots);
+  renderAll();
+};
+function renderSpots(){
+  $("spotList").innerHTML=spots.map((s,i)=>`<div><span>${s.name===spot.name&&s.lat===spot.lat?"● ":""}${s.name}<br><small class="muted">${s.lat}, ${s.lon}</small></span>
+    <button data-use="${i}">Usa</button><button data-del="${i}">✕</button></div>`).join("");
+  document.querySelectorAll("[data-use]").forEach(b=>b.onclick=()=>setSpot(spots[+b.dataset.use]));
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ spots.splice(+b.dataset.del,1); if(!spots.length) spots=DEFAULT_SPOTS.slice(); store.set("spots",spots); renderSpots(); });
+}
+$("saveSpotBtn").onclick=()=>{
+  const box=document.createElement("div");
+  box.innerHTML=`<input id="newSpotName" placeholder="Nome spot" value="${spot.name.replace(/"/g,'')}" style="width:100%;margin:8px 0;font:inherit;padding:6px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px"><button id="newSpotOk">Salva</button>`;
+  $("saveSpotBtn").after(box); $("saveSpotBtn").style.display="none";
+  $("newSpotOk").onclick=()=>{ const n=$("newSpotName").value.trim()||spot.name; spot={...spot,name:n}; spots.push(spot); store.set("spots",spots); store.set("spot",spot);
+    box.remove(); $("saveSpotBtn").style.display=""; $("spotName").textContent=n; renderSpots(); };
+};
+$("geoBtn").onclick=()=>{
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(p=>setSpot({name:"La mia posizione",lat:+p.coords.latitude.toFixed(3),lon:+p.coords.longitude.toFixed(3)}),
+    e=>alertBox("Posizione non disponibile: "+e.message));
+};
+function parseCoords(t){
+  t=(t||"").trim();
+  t=t.replace(/(\d),(\d)/g, (m,a,b,o,all)=> /\d,\d+[\s;]+-?\d/.test(all) ? a+"."+b : m); // virgola decimale italiana: "39,2 9,17"
+  const m=t.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || t.match(/(-?\d{1,2}(?:\.\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:\.\d+)?)/);
+  if(!m) return null;
+  const lat=+m[1], lon=+m[2];
+  return (Math.abs(lat)<=90 && Math.abs(lon)<=180) ? {lat:+lat.toFixed(3), lon:+lon.toFixed(3)} : null;
+}
+$("coordBtn").onclick=()=>{
+  const c=parseCoords($("coordIn").value);
+  if(!c){ alert("Coordinate non riconosciute. Esempio: 39.200, 9.170"); return; }
+  $("coordIn").value=""; setSpot({name:"Punto "+c.lat+", "+c.lon, ...c});
+};
+function alertBox(m){ showErr(m); document.querySelector('nav button[data-view="v-fc"]').click(); }
+function renderThr(){
+  $("thrForm").innerHTML=Object.keys(DEFAULT_THR).map(k=>`<label for="t_${k}">${THR_LABELS[k]}</label><input id="t_${k}" type="number" step="${k.startsWith('wave')?0.1:1}" value="${thr[k]}">`).join("");
+  Object.keys(DEFAULT_THR).forEach(k=>$("t_"+k).onchange=e=>{ const v=parseFloat(e.target.value); if(!isNaN(v)){ thr[k]=v; store.set("thr",thr); renderAll(); } });
+}
+$("resetThr").onclick=()=>{ thr={...DEFAULT_THR}; store.set("thr",thr); renderThr(); renderAll(); };
+
+/* ===================== AVVIO ===================== */
+if(typeof Chart==="undefined") showErr("Le librerie esterne non si sono caricate: la pagina va aperta in Chrome o Safari con connessione internet (le anteprime di file bloccano gli script).");
+renderSpots(); renderSea(); renderThr(); loadForecast(); loadLive();
+setInterval(()=>{ if(document.visibilityState==="visible") loadForecast(); }, 30*60e3);
+setInterval(()=>{ if(document.visibilityState==="visible") loadLive(); }, 5*60e3);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") loadLive(); });
+</script>
+</body>
+</html>

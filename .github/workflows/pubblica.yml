@@ -1,0 +1,47 @@
+# Pubblica l'app su GitHub Pages e aggiorna live.json (vento misurato).
+# Gira a ogni push e ogni 10 minuti. Nota di GitHub: gli orari pianificati possono
+# slittare di qualche minuto, e la pianificazione si ferma dopo 60 giorni senza
+# attività nel repository (basta un push o "Run workflow" per riattivarla).
+name: Pubblica
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepara il sito
+        run: |
+          mkdir -p _site/icons
+          cp meteo-vela.html _site/index.html
+          cp manifest.webmanifest _site/
+          cp icons/*.png _site/icons/
+          python3 scripts/live.py _site/live.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
