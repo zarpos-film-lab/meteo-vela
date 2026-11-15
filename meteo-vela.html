@@ -43,6 +43,9 @@ nav button span{display:block;font-size:18px}
 .now{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
 .now .k{font-size:11px;color:var(--muted)}.now .v{font-size:22px;font-weight:600}
 .now .s{font-size:12px;color:var(--muted)}
+/* Chrome su iOS (non installata): la pagina passa sotto la barra di stato e Chrome sfuma una fascia
+   più alta della barra stessa. Allungo l'intestazione in alto: la parte sfumata resta solo colore pieno. */
+html.crios header{padding-top:calc(env(safe-area-inset-top, 0px) + 46px)}
 .live{position:relative;overflow:hidden}
 .live .src{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .live .name{font-size:42px;line-height:1.05;font-weight:800;letter-spacing:.01em;margin:4px 0 2px;display:flex;align-items:center;gap:12px}
@@ -89,6 +92,10 @@ tr.night td{color:#6f86a0;background:var(--night)}
 </style>
 </head>
 <body>
+<script>
+if(/CriOS/.test(navigator.userAgent) && !(window.matchMedia && matchMedia("(display-mode: standalone)").matches) && !navigator.standalone)
+  document.documentElement.classList.add("crios");
+</script>
 <header>
   <h1 id="spotName">Meteo Vela</h1>
   <div class="upd" id="updLbl">—</div>
