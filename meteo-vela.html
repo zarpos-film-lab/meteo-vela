@@ -50,6 +50,8 @@ nav button span{display:block;font-size:18px}
 .live .sub{font-size:17px;font-weight:600}
 .live .sub small{font-weight:400;color:var(--muted);font-size:13px}
 .live .cmp{font-size:12px;color:var(--muted);margin-top:6px}
+.live .more{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--muted)}
+.live .more a{display:inline-block;padding:5px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--text);text-decoration:none;font-size:13px}
 .shore{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:6px 10px;border-radius:8px;font-size:14px;font-weight:600}
 .shore.terra{background:#4a1d1d;border:1px solid #8a3434;color:#ffd6d6}
 .shore.terra.y{background:#4a3d12;border-color:#8a7434;color:#fff2c4}
@@ -182,6 +184,7 @@ tr.night td{color:#6f86a0;background:var(--night)}
       <li>Vento: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0) – modelli ItaliaMeteo-ARPAE ICON-2I (2 km, 3 gg) ed ECMWF IFS (7 gg)</li>
       <li>Onde: Open-Meteo Marine API (miglior modello disponibile)</li>
       <li>Vento misurato: METAR dell'aeroporto di Cagliari-Elmas (LIEE) da <a href="https://aviationweather.gov" target="_blank" rel="noopener">aviationweather.gov</a>, letto ogni 10 minuti dal server di pubblicazione. Elmas è a circa 10 km dal Poetto, nell'entroterra: la brezza di mare sulla spiaggia può essere diversa.</li>
+      <li>Link "vento misurato più vicino": stazioni di Marina di Sant'Elmo e Quartu Sant'Elena su <a href="https://www.windfinder.com" target="_blank" rel="noopener">windfinder.com</a> (si aprono sul loro sito)</li>
       <li>Mappa e radar: <a href="https://www.windy.com" target="_blank" rel="noopener">windy.com</a> (embed, uso personale)</li>
     </ul>
   </div>
@@ -227,6 +230,11 @@ const THR_LABELS = {
 // Nomi tradizionali dei venti (direzione di provenienza), 8 settori da 45°
 const WIND_NAMES = ["Tramontana","Grecale","Levante","Scirocco","Mezzogiorno","Libeccio","Ponente","Maestrale"];
 const LIVE_URL = "live.json";
+// Stazioni con misure vere vicino al Poetto che non si possono leggere dall'app (niente API aperta): solo link
+const NEAR_LINKS = [
+  ["Sant'Elmo · 4,6 km","https://www.windfinder.com/report/marina-di-santelmo"],
+  ["Quartu · 5,1 km","https://www.windfinder.com/report/quartu_sant_elena"],
+];
 const M_ICON = "italia_meteo_arpae_icon_2i", M_EC = "ecmwf_ifs025";
 const CARD = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSO","SO","OSO","O","ONO","NO","NNO"];
 const WIND_STOPS = [[0,"#6271b7"],[3,"#39619f"],[6,"#4a94a9"],[9,"#4d8d7b"],[12,"#53a553"],[15,"#359f35"],[18,"#a79d51"],[21,"#9f7f3a"],[25,"#a16c5c"],[29,"#813a4e"],[33,"#af5088"],[38,"#754a93"],[45,"#6d61a3"]];
@@ -529,7 +537,8 @@ function renderLive(){
   el.innerHTML = `<div class="src">${src}</div>
     <div class="name">${deg!=null&&name!=="Calma"?arrow(deg):""}<span>${name}</span></div>
     <div class="sub">${fmt(kn)} kn${gust!=null?` · raffiche ${fmt(gust)}`:""} <small>${deg!=null?"da "+card(deg)+" ("+Math.round(deg)+"°)":"direzione variabile"}</small></div>
-    ${shore}${cmp}`;
+    ${shore}${cmp}
+    <div class="more">Vento misurato più vicino: ${NEAR_LINKS.map(([l,u])=>`<a href="${u}" target="_blank" rel="noopener">${l} ↗</a>`).join("")}</div>`;
 }
 
 /* ===================== IMPOSTAZIONI ===================== */
