@@ -392,10 +392,11 @@ function renderAll(){
 window.addEventListener("error",e=>{ if(e.message) showErr("Errore: "+e.message); });
 window.addEventListener("unhandledrejection",e=>{ const r=e.reason; showErr("Errore: "+(r&&r.message?r.message:String(r))); });
 
+// riga della previsione più vicina all'ora attuale (es. 22:31 → 23:00, 22:20 → 22:00)
+function nowRow(){ const n=Date.now(); return fc.rows.reduce((a,x)=>Math.abs(x.t-n)<Math.abs(a.t-n)?x:a, fc.rows[0]); }
 function renderNow(){
   renderLive();
-  const now = new Date();
-  const r = fc.rows.find(x=>x.t>=new Date(now.getTime()-3600e3)) || fc.rows[0];
+  const r = nowRow();
   const next = fc.rows.filter(x=>x.t>=r.t && x.t < new Date(r.t.getTime()+6*3600e3));
   const worst = next.reduce((a,x)=>({r:3,y:2,g:1,n:0}[x.status]>({r:3,y:2,g:1,n:0}[a])?x.status:a),"n");
   const offN = next.filter(x=>x.off && x.status!=="g").length;
@@ -510,7 +511,7 @@ function renderLive(){
   let obs=null;
   if(live) live.stations.filter(s=>s.time && Date.now()-new Date(s.time)<90*60e3 && s.kn!=null)
     .forEach(s=>{ s.km=distKm(spot.lat,spot.lon,s.lat,s.lon); if(!obs||s.km<obs.km) obs=s; });
-  const now=new Date(), r = fc ? (fc.rows.find(x=>x.t>=new Date(now.getTime()-1800e3)) || fc.rows[0]) : null;
+  const r = fc ? nowRow() : null;
   if(!obs && !r){ el.innerHTML='<div class="src">Vento adesso</div><div class="name">—</div>'; return; }
   const deg = obs ? obs.dir : r.D, kn = obs ? obs.kn : r.W, gust = obs ? obs.gust : r.G;
   const name = windName(deg,kn);
